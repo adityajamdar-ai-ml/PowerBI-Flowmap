@@ -109,7 +109,7 @@ class VisualFlow {
         events.pathInited && events.pathInited(all);
     }
 
-    transform(map: Microsoft.Maps.Map, pzoom: number) {
+    transform(map: any, pzoom: number) {
         if (this._shape) {
             this._shape.transform(map, pzoom);
             this._translate();
@@ -130,12 +130,15 @@ class VisualFlow {
 
 export function init(d3: ISelex): IListener {
     const rect = d3.append('rect');
-    const remask = () => rect.att.width($state.mapctl.map.getWidth())
-        .att.height($state.mapctl.map.getHeight())
-        .att.x(0 - $state.mapctl.map.getWidth() / 2)
-        .att.y(0 - $state.mapctl.map.getHeight() / 2)
-        .att.fill_opacity(0.01)
-        .sty.pointer_events('none');
+    const remask = () => {
+        const sz = $state.mapctl.map.getSize();
+        rect.att.width(sz.x)
+            .att.height(sz.y)
+            .att.x(0 - sz.x / 2)
+            .att.y(0 - sz.y / 2)
+            .att.fill_opacity(0.01)
+            .sty.pointer_events('none');
+    };
     root = d3.append('g');
     return {
         transform: (ctl, pzoom) => {

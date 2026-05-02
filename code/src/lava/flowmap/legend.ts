@@ -91,8 +91,9 @@ export class Legend {
     private _scaleWidth = 0;
     resize() {
         const { show, position } = $state.config.legend;
-        const height = $state.mapctl.map.getHeight();
-        const width = $state.mapctl.map.getWidth();
+        const sz = $state.mapctl.map.getSize();
+        const height = sz.y;
+        const width = sz.x;
         const legHeight = show ? this.height() : 0;
         const top = position === 'top' ? null : (height - legHeight + 2) + 'px';
         this._svg.sty.margin_top(top).sty.display(show ? null : 'none');

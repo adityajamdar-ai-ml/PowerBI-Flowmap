@@ -238,8 +238,9 @@ export class Controller {
       this._map.invalidateSize();
       this._map.on('zoom move', () => this._viewChange(false));
       this._map.on('zoomend moveend', () => this._viewChange(true));
-      if (typeof ResizeObserver !== 'undefined') {
-        new ResizeObserver(() => this._resize()).observe(this._div);
+      const RObs: any = (window as any).ResizeObserver;
+      if (RObs) {
+        new RObs(() => this._resize()).observe(this._div);
       }
     }
 

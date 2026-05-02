@@ -148,7 +148,7 @@ class helper {
 export interface IShape {
     rewidth(): void;
     calc(weight: (row: number) => number): number[];
-    transform(map: Microsoft.Maps.Map, pzoom: number): void;
+    transform(map: any, pzoom: number): void;
     bound: IBound;
     source: ILocation;
     paths(): IPath[];
@@ -205,7 +205,7 @@ class FlowShape implements IShape {
             .att.d(p => p.d(conv));
     }
 
-    transform(map: Microsoft.Maps.Map, pzoom: number) {
+    transform(map: any, pzoom: number) {
         const conv = pointConverter(pzoom);
         conv && this.d3.selectAll<IPath>('.flow').att.d(p => p.d(conv));
     }
@@ -243,7 +243,7 @@ class LineShape implements IShape {
         this.d3.selectAll<IPath>('path').att.stroke_width(p => p.width(width));
     }
 
-    transform(map: Microsoft.Maps.Map, pzoom: number) {
+    transform(map: any, pzoom: number) {
         this.rewidth();
     }
 
