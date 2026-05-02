@@ -22,7 +22,7 @@ type Read<T> = Func<number, T>;
 type Ctx = Context<Role, Format>;
 
 const persist = {
-    map: new Persist<[Microsoft.Maps.Location, number]>('persist', 'map'),
+    map: new Persist<[ILocation, number]>('persist', 'map'),
     geocode: new Persist<StringMap<ILocation>>('persist', 'geocoding'),
     manual: new Persist<StringMap<ILocation>>('persist', 'manual'),
     banner: new Persist<string[]>('persist', 'banner')
@@ -339,7 +339,7 @@ export class Visual implements IVisual {
             app.init(this._target, mapFmt, persist.banner.value() || [], ctl => {
                 const [center, zoom] = persist.map.value() || [null, null];
                 center && ctl.setCenterZoom(center, zoom);
-                ctl.add({ transform: (c, p, e) => e && persist.map.write([c.map.getCenter(), c.map.getZoom()], 400) });
+                ctl.add({ transform: (c, p, e) => e && persist.map.write([c.getCenter(), c.map.getZoom()], 400) });
                 this._initing = false;
                 if (center) {
                     app.reset(this._cfg = this._config());

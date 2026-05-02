@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\aditya.jamdar\\\\SCO\\\\PowerBI\\\\PowerBI-Flowmap\" -Recurse)",
+      "Bash(Select-Object FullName)",
+      "WebFetch(domain:unpkg.com)"
+    ]
+  }
+}

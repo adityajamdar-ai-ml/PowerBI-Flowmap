@@ -20,7 +20,8 @@ interface Issue {
 
 class State {
   public get border(): IRect {
-    return { x: 0, y: 0, height: this.mapctl.map.getHeight(), width: this.mapctl.map.getWidth() };
+    const sz = this.mapctl.map.getSize();
+    return { x: 0, y: 0, height: sz.y, width: sz.x };
   }
   config = null as Config;
   issues = {} as StringMap<Issue>;
@@ -40,8 +41,8 @@ class State {
   reset(config: Config) {
     this.config = config;
   }
-  pixel(addr: string, ref?: Microsoft.Maps.PixelReference) {
-    return this.mapctl.pixel(this.loc(addr), ref);
+  pixel(addr: string) {
+    return this.mapctl.pixel(this.loc(addr));
   }
 }
 

@@ -30,12 +30,17 @@ export interface IBound {
     offsets?: number[];
 }
 
+export interface IViewOptions {
+    zoom: number;
+    center: ILocation;
+}
+
 export function bound(data: ILocation[]): IBound {
     let anch = anchor(data);
     if (!anch) {
         return null;
     }
-    let { longitude: alon, latitude: alat, positive } = anch;    
+    let { longitude: alon, latitude: alat, positive } = anch;
     let west = 0, east = 0, south = 0, north = 0, dcnt = 0;
     let offsets = [];
     for (let i = 0; i < data.length; i++) {
@@ -57,7 +62,6 @@ export function bound(data: ILocation[]): IBound {
             }
             else {
                 if (alon - long > long + 360 - alon) {
-                    //shifted
                     east = Math.max(long + 360 - alon, east);
                     offsets[i] = 1;
                 }
@@ -66,13 +70,12 @@ export function bound(data: ILocation[]): IBound {
                 }
             }
         }
-        else {//negative
+        else {
             if (long < alon) {
                 west = Math.max(alon - long, west);
             }
             else {
                 if (alon - (long - 360) < long - alon) {
-                    //shifted
                     west = Math.max(alon - (long - 360), west);
                     offsets[i] = -1;
                 }
@@ -89,15 +92,15 @@ export function bound(data: ILocation[]): IBound {
         anchor: { longitude: alon, latitude: alat },
         margin: { east, west, south, north },
         offsets
-    }
+    };
 }
 
-export function fitOptions(bounds: IBound[], view: ISize): Microsoft.Maps.IViewOptions {
+export function fitOptions(bounds: IBound[], view: ISize): IViewOptions {
     bounds = (bounds || []).filter(a => !!a);
     if (bounds.length === 0) {
         return {
             zoom: defaultZoom(view.width, view.height),
-            center: new Microsoft.Maps.Location(0, 0)
+            center: { latitude: 0, longitude: 0 }
         };
     }
     let n = Math.max(...bounds.map(a => a.anchor.latitude + a.margin.north));
@@ -106,31 +109,34 @@ export function fitOptions(bounds: IBound[], view: ISize): Microsoft.Maps.IViewO
     let e = Math.max(...bounds.map(a => a.anchor.longitude + a.margin.east));
     s = clamp(s, -88, 88);
     n = clamp(n, -88, 88);
-    let rect = Microsoft.Maps.LocationRect.fromCorners(
-        new Microsoft.Maps.Location(n, w),
-        new Microsoft.Maps.Location(s, e)
-    );
+    let centerLat = (n + s) / 2;
+    let centerLng = (w + e) / 2;
     let height = Math.abs(helper.lat2y(n, 20) - helper.lat2y(s, 20));
-    let width = helper.lon2x(rect.width - 180, 20);
-    for (var level = 20; level > 1; level--) {
+    let width = helper.lon2x(e - w - 180, 20);
+    let level = 20;
+    for (level = 20; level > 1; level--) {
         if (width < view.width && height < view.height) {
             break;
         }
         width /= 2;
         height /= 2;
-  }
-  return { zoom: level, center: rect.center };
+    }
+    return { zoom: level, center: { latitude: centerLat, longitude: centerLng } };
 }
 
-export function anchorPixel(m: Microsoft.Maps.Map, bound: IBound): IPoint {
-    let level = m.getZoom(), { anchor, margin } = bound;
-    let loc = new Microsoft.Maps.Location(anchor.latitude, anchor.longitude);
-    let pix = m.tryLocationToPixel(loc) as IPoint;
-    let east = helper.lon2x(margin.east - 180, level);
-    let west = helper.lon2x(margin.west - 180, level);
-    let width = m.getWidth();
+export function anchorPixel(
+    zoom: number,
+    toPixel: Func<ILocation, IPoint>,
+    mapWidth: number,
+    bound: IBound
+): IPoint {
+    let { anchor, margin } = bound;
+    let pix = toPixel(anchor);
+    let east = helper.lon2x(margin.east - 180, zoom);
+    let west = helper.lon2x(margin.west - 180, zoom);
+    let width = mapWidth;
     let left = pix.x + width / 2 - west;
-    let size = helper.mapSize(level);
+    let size = helper.mapSize(zoom);
     let half = east / 2 + west / 2;
     if (left < 0) {
         if (width - left - size > half) {
@@ -153,7 +159,6 @@ export function anchorPixel(m: Microsoft.Maps.Map, bound: IBound): IPoint {
     return pix;
 }
 
-//allow to have null or undefined in data
 export function anchor(data: ILocation[]): ILocation & { positive: boolean } {
     if (!data || data.length === 0) {
         return null;
@@ -183,18 +188,18 @@ export function anchor(data: ILocation[]): ILocation & { positive: boolean } {
         longitude: positive ? psum / pcnt : nsum / ncnt,
         latitude: latsum / data.length,
         positive: positive
-    }
+    };
 }
 
 export function area(data: ILocation[], level = 20): IArea {
-    let area = bound(data) as any as IArea;
+    let a = bound(data) as any as IArea;
     if (!bound) {
         return null;
     }
-    let offsets = area.offsets;
-    let { longitude: alon, latitude: alat } = area.anchor;
+    let offsets = a.offsets;
+    let { longitude: alon, latitude: alat } = a.anchor;
     let period = helper.lon2x(180, level);
-    
+
     let ax = helper.lon2x(alon, level), ay = helper.lat2y(alat, level);
     let points = [] as IPoint[];
     for (let i = 0; i < data.length; i++) {
@@ -207,18 +212,18 @@ export function area(data: ILocation[], level = 20): IArea {
         let y = Math.round(helper.lat2y(d.latitude, level) - ay);
         points.push({ x: x + (offsets[i] || 0) * period, y });
     }
-    area.points = points;
-    area.scale = z => Math.pow(2, z - level);
-    return area;
+    a.points = points;
+    a.scale = z => Math.pow(2, z - level);
+    return a;
 }
 
 export class Converter {
     private _level: number;
-    
+
     constructor(level: number) {
         this._level = level;
     }
-    
+
     public factor(zoom: number): number {
         return Math.pow(2, zoom - this._level);
     }
@@ -227,7 +232,7 @@ export class Converter {
         let ret = this.points(data), half = helper.lon2x(0, this._level);
         let points = ret.points, prev = null as IPoint;
         for (let p of points) {
-            if (!p) continue;
+            if (!p) { continue; }
             if (prev === null) {
                 prev = p;
             }
@@ -238,7 +243,7 @@ export class Converter {
                 }
                 prev = p;
             }
-        }        
+        }
         return ret;
     }
 
@@ -257,48 +262,52 @@ export class Converter {
 
 namespace helper {
     let _mapSizeCache = [0, 0];
-    function _map2Screen(v: number, level: number): number {
-        var size = mapSize(level);
-        return Math.min(v * size + 0.5, size - 1);
-    }
 
     export function mapSize(level: number): number {
-        var size = 0;
+        let size = 0;
         if (level === _mapSizeCache[0]) {
             size = _mapSizeCache[1];
         }
         else {
-            if (level === 23)
+            if (level === 23) {
                 size = 2147483648;
-            else if (Math.floor(level) == level)
+            }
+            else if (Math.floor(level) === level) {
                 size = 256 << level;
-            else
+            }
+            else {
                 size = 256 * Math.pow(2, level);
+            }
             _mapSizeCache = [level, size];
         }
         return size;
     }
 
+    function map2Screen(v: number, level: number): number {
+        let size = mapSize(level);
+        return Math.min(v * size + 0.5, size - 1);
+    }
+
     export function lat2y(lat: number, level: number): number {
-        if (lat < -85.05112878) lat = -85.05112878;
-        if (lat > 85.05112878) lat = 85.05112878;
+        if (lat < -85.05112878) { lat = -85.05112878; }
+        if (lat > 85.05112878) { lat = 85.05112878; }
         let sin = Math.sin(lat * Math.PI / 180);
         let y = 0.5 - Math.log((1 + sin) / (1 - sin)) / (4 * Math.PI);
-        return _map2Screen(y, level);
+        return map2Screen(y, level);
     }
 
     export function lon2x(lon: number, level: number): number {
-        if (lon < -180) lon = -180;
-        if (lon > 180) lon = 180;
-        return _map2Screen((lon + 180) / 360, level);
+        if (lon < -180) { lon = -180; }
+        if (lon > 180) { lon = 180; }
+        return map2Screen((lon + 180) / 360, level);
     }
 
     export function loc(pixelX: number, pixelY: number, level: number): ILocation {
-        var mapSize = mapSize(level);
-        var x = Math.min(pixelX, mapSize - 1) / mapSize - 0.5;
-        var y = 0.5 - Math.min(pixelY, mapSize - 1) / mapSize;
-        var latitude = 90 - 360 * Math.atan(Math.exp(-y * 2 * Math.PI)) / Math.PI;
-        var longitude = 360 * x;
+        let ms = mapSize(level);
+        let x = Math.min(pixelX, ms - 1) / ms - 0.5;
+        let y = 0.5 - Math.min(pixelY, ms - 1) / ms;
+        let latitude = 90 - 360 * Math.atan(Math.exp(-y * 2 * Math.PI)) / Math.PI;
+        let longitude = 360 * x;
         return { latitude, longitude };
     }
 }
